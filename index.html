@@ -452,6 +452,19 @@
             </div>
 
             <div class="group">
+              <h4>Portfolio</h4>
+              <p class="group-note">Choose a portfolio, rename it, then manage the cash, crypto amounts, and stock shares held in that portfolio.</p>
+              <label>
+                <span>Portfolio Account</span>
+                <select id="managePortfolioSelect"></select>
+              </label>
+              <label>
+                <span>Portfolio Name</span>
+                <input id="managePortfolioName" type="text" />
+              </label>
+            </div>
+
+            <div class="group">
               <h4>Overview</h4>
               <label>
                 <span>Cash Reserve</span>
@@ -473,13 +486,14 @@
 
             <div class="group">
               <h4>Crypto</h4>
+              <p class="group-note">Edit only the amount you hold. Live USD prices update automatically from market data.</p>
               <label>
                 <span>Bitcoin Amount</span>
                 <input id="btcAmount" type="number" step="0.000001" />
               </label>
               <label>
-                <span>Bitcoin Price</span>
-                <input id="btcPrice" type="number" step="0.01" />
+                <span>Bitcoin Price · Live</span>
+                <input id="btcPrice" type="number" step="0.01" readonly />
               </label>
 
               <label>
@@ -487,8 +501,8 @@
                 <input id="ethAmount" type="number" step="0.000001" />
               </label>
               <label>
-                <span>Ethereum Price</span>
-                <input id="ethPrice" type="number" step="0.01" />
+                <span>Ethereum Price · Live</span>
+                <input id="ethPrice" type="number" step="0.01" readonly />
               </label>
 
               <label>
@@ -496,8 +510,8 @@
                 <input id="solAmount" type="number" step="0.000001" />
               </label>
               <label>
-                <span>Solana Price</span>
-                <input id="solPrice" type="number" step="0.01" />
+                <span>Solana Price · Live</span>
+                <input id="solPrice" type="number" step="0.01" readonly />
               </label>
 
               <label>
@@ -505,20 +519,21 @@
                 <input id="xrpAmount" type="number" step="0.000001" />
               </label>
               <label>
-                <span>XRP Price</span>
-                <input id="xrpPrice" type="number" step="0.01" />
+                <span>XRP Price · Live</span>
+                <input id="xrpPrice" type="number" step="0.01" readonly />
               </label>
             </div>
 
             <div class="group">
               <h4>Stocks & ETFs</h4>
+              <p class="group-note">Edit shares only. Stock and ETF prices update automatically from live quote data.</p>
               <label>
                 <span>TSLA Shares</span>
                 <input id="tslaShares" type="number" step="0.0001" />
               </label>
               <label>
-                <span>TSLA Price</span>
-                <input id="tslaPrice" type="number" step="0.01" />
+                <span>TSLA Price · Live</span>
+                <input id="tslaPrice" type="number" step="0.01" readonly />
               </label>
 
               <label>
@@ -526,8 +541,8 @@
                 <input id="nvdaShares" type="number" step="0.0001" />
               </label>
               <label>
-                <span>NVDA Price</span>
-                <input id="nvdaPrice" type="number" step="0.01" />
+                <span>NVDA Price · Live</span>
+                <input id="nvdaPrice" type="number" step="0.01" readonly />
               </label>
 
               <label>
@@ -535,8 +550,8 @@
                 <input id="spyShares" type="number" step="0.0001" />
               </label>
               <label>
-                <span>SPY Price</span>
-                <input id="spyPrice" type="number" step="0.01" />
+                <span>SPY Price · Live</span>
+                <input id="spyPrice" type="number" step="0.01" readonly />
               </label>
             </div>
 

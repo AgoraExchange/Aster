@@ -42,7 +42,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -153,7 +154,8 @@ label span {
   font-size: 0.92rem;
 }
 
-input {
+input,
+select {
   height: 52px;
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -167,9 +169,16 @@ input::placeholder {
   color: #7582a2;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: rgba(102, 167, 255, 0.85);
   box-shadow: 0 0 0 4px rgba(102, 167, 255, 0.12);
+}
+
+input[readonly] {
+  color: #b9c6e7;
+  background: rgba(255, 255, 255, 0.025);
+  cursor: default;
 }
 
 .primary-btn {
@@ -1397,6 +1406,13 @@ input:focus {
 
 .group h4 {
   margin: 0 0 2px;
+}
+
+.group-note {
+  margin: -2px 0 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 

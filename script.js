@@ -4,6 +4,19 @@
   const STORAGE_KEY = "aster_vault_prop_app_v8";
   const LIVE_TICK_MS = 3000;
   const ACTIVITY_MARKET_TICK_MS = 2000;
+  const CRYPTO_MARKET_REFRESH_MS = 60000;
+  const STOCK_MARKET_REFRESH_MS = 60000;
+  const CRYPTO_MARKET_IDS = {
+    btc: "bitcoin",
+    eth: "ethereum",
+    sol: "solana",
+    xrp: "ripple"
+  };
+  const STOCK_MARKET_SYMBOLS = {
+    tsla: "tsla.us",
+    nvda: "nvda.us",
+    spy: "spy.us"
+  };
 
   const $ = (id) => document.getElementById(id);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -185,15 +198,15 @@
       buyingPower: 120000.0
     },
     crypto: [
-      { id: "btc", name: "Bitcoin", symbol: "BTC", amount: 8.8421, price: 71050.31, move: 3.91 },
-      { id: "eth", name: "Ethereum", symbol: "ETH", amount: 74.58, price: 2193.10, move: 2.47 },
-      { id: "sol", name: "Solana", symbol: "SOL", amount: 1622.11, price: 90.05, move: 6.35 },
-      { id: "xrp", name: "XRP", symbol: "XRP", amount: 84205.5, price: 1.40, move: 5.12 }
+      { id: "btc", marketId: "bitcoin", name: "Bitcoin", symbol: "BTC", amount: 8.8421, price: 71050.31, move: 3.91 },
+      { id: "eth", marketId: "ethereum", name: "Ethereum", symbol: "ETH", amount: 74.58, price: 2193.10, move: 2.47 },
+      { id: "sol", marketId: "solana", name: "Solana", symbol: "SOL", amount: 1622.11, price: 90.05, move: 6.35 },
+      { id: "xrp", marketId: "ripple", name: "XRP", symbol: "XRP", amount: 84205.5, price: 1.40, move: 5.12 }
     ],
     stocks: [
-      { id: "tsla", name: "Tesla", symbol: "TSLA", shares: 420.381, price: 392.78, move: 2.83 },
-      { id: "nvda", name: "NVIDIA", symbol: "NVDA", shares: 384.22, price: 180.40, move: 4.22 },
-      { id: "spy", name: "SPDR S&P 500 ETF", symbol: "SPY", shares: 210.1, price: 661.43, move: 1.18 }
+      { id: "tsla", quoteSymbol: "tsla.us", name: "Tesla", symbol: "TSLA", shares: 420.381, price: 392.78, move: 2.83 },
+      { id: "nvda", quoteSymbol: "nvda.us", name: "NVIDIA", symbol: "NVDA", shares: 384.22, price: 180.40, move: 4.22 },
+      { id: "spy", quoteSymbol: "spy.us", name: "SPDR S&P 500 ETF", symbol: "SPY", shares: 210.1, price: 661.43, move: 1.18 }
     ],
     predictionMarkets: [
       { id: "pm1", title: "College Basketball", subtitle: "Will a No. 1 seed win the championship?", volume: "$2.4M Vol." },
@@ -285,6 +298,8 @@
 
     manageName: $("manageName"),
     manageEmail: $("manageEmail"),
+    managePortfolioSelect: $("managePortfolioSelect"),
+    managePortfolioName: $("managePortfolioName"),
     manageCash: $("manageCash"),
     manageAvailable: $("manageAvailable"),
     manageChange: $("manageChange"),
@@ -349,6 +364,8 @@
   let state = loadState();
   let liveInterval = null;
   let activityMarketInterval = null;
+  let cryptoMarketInterval = null;
+  let stockMarketInterval = null;
   let timedBannerTimeout = null;
   let accountEventsBound = false;
   let settingsEventsBound = false;
@@ -357,6 +374,100 @@
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
+  }
+
+  function enrichCryptoAssets(assets) {
+    return (Array.isArray(assets) ? assets : []).map((asset) => ({
+      ...asset,
+      marketId: asset.marketId || CRYPTO_MARKET_IDS[asset.id] || asset.id
+    }));
+  }
+
+  function enrichStockAssets(assets) {
+    return (Array.isArray(assets) ? assets : []).map((asset) => ({
+      ...asset,
+      quoteSymbol: asset.quoteSymbol || STOCK_MARKET_SYMBOLS[asset.id] || `${asset.symbol}.us`.toLowerCase()
+    }));
+  }
+
+  function portfolioSnapshotFrom(source) {
+    return {
+      wallet: clone(source.wallet),
+      crypto: enrichCryptoAssets(clone(source.crypto)),
+      stocks: enrichStockAssets(clone(source.stocks))
+    };
+  }
+
+  function emptyPortfolioSnapshot() {
+    const base = portfolioSnapshotFrom(state || defaultState);
+    return {
+      wallet: {
+        ...base.wallet,
+        cash: 0,
+        available: 0,
+        buyingPower: 0,
+        dayChange: 0
+      },
+      crypto: base.crypto.map((asset) => ({ ...asset, amount: 0 })),
+      stocks: base.stocks.map((asset) => ({ ...asset, shares: 0 }))
+    };
+  }
+
+  function normalizePortfolioSnapshot(snapshot) {
+    const fallback = portfolioSnapshotFrom(defaultState);
+    return {
+      wallet: { ...fallback.wallet, ...(snapshot?.wallet || {}) },
+      crypto: enrichCryptoAssets(Array.isArray(snapshot?.crypto) ? snapshot.crypto : fallback.crypto),
+      stocks: enrichStockAssets(Array.isArray(snapshot?.stocks) ? snapshot.stocks : fallback.stocks)
+    };
+  }
+
+  function ensurePortfolioData(targetState = state) {
+    if (!targetState.portfolioData || typeof targetState.portfolioData !== "object") {
+      targetState.portfolioData = {};
+    }
+
+    targetState.portfolioUi.items.forEach((item) => {
+      if (!targetState.portfolioData[item.id]) {
+        targetState.portfolioData[item.id] =
+          item.id === targetState.portfolioUi.activeId
+            ? portfolioSnapshotFrom(targetState)
+            : {
+                wallet: { ...clone(defaultState.wallet), cash: 0, available: 0, buyingPower: 0, dayChange: 0 },
+                crypto: enrichCryptoAssets(clone(defaultState.crypto)).map((asset) => ({ ...asset, amount: 0 })),
+                stocks: enrichStockAssets(clone(defaultState.stocks)).map((asset) => ({ ...asset, shares: 0 }))
+              };
+      }
+      targetState.portfolioData[item.id] = normalizePortfolioSnapshot(targetState.portfolioData[item.id]);
+    });
+  }
+
+  function saveCurrentPortfolioSnapshot() {
+    ensurePortfolioData();
+    const id = state.portfolioUi.activeId;
+    if (!id) return;
+    state.portfolioData[id] = portfolioSnapshotFrom(state);
+  }
+
+  function loadActivePortfolioSnapshot() {
+    ensurePortfolioData();
+    const id = state.portfolioUi.activeId;
+    const snapshot = normalizePortfolioSnapshot(state.portfolioData[id]);
+    state.wallet = clone(snapshot.wallet);
+    state.crypto = enrichCryptoAssets(clone(snapshot.crypto));
+    state.stocks = enrichStockAssets(clone(snapshot.stocks));
+    resetLiveBaseFromPortfolio();
+  }
+
+  function switchPortfolio(portfolioId) {
+    if (!portfolioId || portfolioId === state.portfolioUi.activeId) return;
+    saveCurrentPortfolioSnapshot();
+    state.portfolioUi.activeId = portfolioId;
+    loadActivePortfolioSnapshot();
+    saveState();
+    renderAll();
+    refreshCryptoMarketPrices();
+    refreshStockMarketPrices();
   }
 
   function migrateState(parsed) {
@@ -373,8 +484,9 @@
       },
       user: { ...defaultState.user, ...(parsed.user || {}) },
       wallet: { ...defaultState.wallet, ...(parsed.wallet || {}) },
-      crypto: Array.isArray(parsed.crypto) ? parsed.crypto : clone(defaultState.crypto),
-      stocks: Array.isArray(parsed.stocks) ? parsed.stocks : clone(defaultState.stocks),
+      crypto: enrichCryptoAssets(Array.isArray(parsed.crypto) ? parsed.crypto : clone(defaultState.crypto)),
+      stocks: enrichStockAssets(Array.isArray(parsed.stocks) ? parsed.stocks : clone(defaultState.stocks)),
+      portfolioData: parsed.portfolioData && typeof parsed.portfolioData === "object" ? parsed.portfolioData : {},
       predictionMarkets: Array.isArray(parsed.predictionMarkets) ? parsed.predictionMarkets : clone(defaultState.predictionMarkets),
       accounts: Array.isArray(parsed.accounts) ? parsed.accounts : clone(defaultState.accounts),
       activity: Array.isArray(parsed.activity) ? parsed.activity : clone(defaultState.activity),
@@ -406,6 +518,12 @@
     if (!merged.portfolioUi.activeId) {
       merged.portfolioUi.activeId = merged.portfolioUi.items[0]?.id || "p1";
     }
+
+    ensurePortfolioData(merged);
+    const activeSnapshot = normalizePortfolioSnapshot(merged.portfolioData[merged.portfolioUi.activeId]);
+    merged.wallet = clone(activeSnapshot.wallet);
+    merged.crypto = enrichCryptoAssets(clone(activeSnapshot.crypto));
+    merged.stocks = enrichStockAssets(clone(activeSnapshot.stocks));
 
     return merged;
   }
@@ -447,6 +565,11 @@
   function signedMoney(value) {
     const n = Number(value) || 0;
     return `${n >= 0 ? "+" : "-"}${money(Math.abs(n))}`;
+  }
+
+  function priceInputValue(value) {
+    const n = Number(value) || 0;
+    return n < 1 ? n.toFixed(6) : n.toFixed(2);
   }
 
   function amountClass(value) {
@@ -552,6 +675,218 @@
     if (liveInterval) {
       clearInterval(liveInterval);
       liveInterval = null;
+    }
+  }
+
+  function buildCryptoMarketUrl() {
+    const ids = [...new Set(state.crypto.map((asset) => asset.marketId).filter(Boolean))].join(",");
+    const params = new URLSearchParams({
+      ids,
+      vs_currencies: "usd",
+      include_24hr_change: "true",
+      include_last_updated_at: "true"
+    });
+    return `https://api.coingecko.com/api/v3/simple/price?${params.toString()}`;
+  }
+
+  function updateMarketListAsset(list, symbol, price, move) {
+    if (!Array.isArray(list)) return;
+    const item = list.find((asset) => asset.symbol === symbol);
+    if (!item) return;
+    item.price = price;
+    item.move = move;
+  }
+
+  function updatePortfolioCryptoPrices(asset) {
+    ensurePortfolioData();
+    Object.values(state.portfolioData).forEach((snapshot) => {
+      snapshot.crypto = enrichCryptoAssets(snapshot.crypto).map((held) =>
+        held.id === asset.id
+          ? { ...held, price: asset.price, move: asset.move, lastUpdatedAt: asset.lastUpdatedAt }
+          : held
+      );
+    });
+  }
+
+  function updatePortfolioStockPrices(stock) {
+    ensurePortfolioData();
+    Object.values(state.portfolioData).forEach((snapshot) => {
+      snapshot.stocks = enrichStockAssets(snapshot.stocks).map((held) =>
+        held.id === stock.id
+          ? { ...held, price: stock.price, move: stock.move, lastQuoteAt: stock.lastQuoteAt, volume: stock.volume }
+          : held
+      );
+    });
+  }
+
+  function parseCsvLine(line) {
+    const values = [];
+    let current = "";
+    let quoted = false;
+
+    for (const char of line) {
+      if (char === '"') {
+        quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        values.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+
+    values.push(current);
+    return values;
+  }
+
+  async function refreshCryptoMarketPrices({ render = true } = {}) {
+    if (!state.crypto?.length) return;
+
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 9000);
+      const response = await fetch(buildCryptoMarketUrl(), {
+        signal: controller.signal,
+        headers: { accept: "application/json" }
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) throw new Error(`Market data request failed: ${response.status}`);
+
+      const quotes = await response.json();
+      let changed = false;
+
+      state.crypto = state.crypto.map((asset) => {
+        const quote = quotes[asset.marketId];
+        if (!quote || typeof quote.usd !== "number") return asset;
+
+        const nextPrice = Number(quote.usd);
+        const nextMove = typeof quote.usd_24h_change === "number" ? Number(quote.usd_24h_change) : Number(asset.move) || 0;
+        changed = true;
+
+        updateMarketListAsset(state.activityMarketCoins, asset.symbol, nextPrice, nextMove);
+        updateMarketListAsset(state.exploreTradable, asset.symbol, nextPrice, nextMove);
+        updateMarketListAsset(state.exploreNonTradable, asset.symbol, nextPrice, nextMove);
+
+        const nextAsset = {
+          ...asset,
+          price: nextPrice,
+          move: Number(nextMove.toFixed(2)),
+          lastUpdatedAt: quote.last_updated_at || Math.floor(Date.now() / 1000)
+        };
+        updatePortfolioCryptoPrices(nextAsset);
+        return nextAsset;
+      });
+
+      if (!changed) return;
+
+      resetLiveBaseFromPortfolio();
+      saveState();
+      if (render) {
+        renderAll();
+        if (el.manageModal && !el.manageModal.classList.contains("hidden")) {
+          fillManageForm();
+        }
+      }
+    } catch (error) {
+      console.warn("Live crypto prices unavailable; using the last saved prices.", error);
+    }
+  }
+
+  function startCryptoMarketPricing() {
+    stopCryptoMarketPricing();
+    refreshCryptoMarketPrices();
+    cryptoMarketInterval = setInterval(refreshCryptoMarketPrices, CRYPTO_MARKET_REFRESH_MS);
+  }
+
+  function stopCryptoMarketPricing() {
+    if (cryptoMarketInterval) {
+      clearInterval(cryptoMarketInterval);
+      cryptoMarketInterval = null;
+    }
+  }
+
+  async function fetchStooqQuote(stock) {
+    const params = new URLSearchParams({
+      s: stock.quoteSymbol,
+      f: "sd2t2ohlcv",
+      h: "",
+      e: "csv"
+    });
+    const response = await fetch(`https://stooq.com/q/l/?${params.toString()}`, {
+      headers: { accept: "text/csv" }
+    });
+
+    if (!response.ok) throw new Error(`Stock quote request failed: ${response.status}`);
+
+    const text = await response.text();
+    const [, row] = text.trim().split(/\r?\n/);
+    if (!row) return null;
+
+    const [, date, time, openRaw, , , closeRaw, volumeRaw] = parseCsvLine(row);
+    const open = Number(openRaw);
+    const close = Number(closeRaw);
+
+    if (!Number.isFinite(close) || close <= 0) return null;
+
+    return {
+      price: close,
+      move: Number.isFinite(open) && open > 0 ? Number((((close - open) / open) * 100).toFixed(2)) : Number(stock.move) || 0,
+      lastQuoteAt: date && time ? `${date} ${time}` : "",
+      volume: Number(volumeRaw) || 0
+    };
+  }
+
+  async function refreshStockMarketPrices({ render = true } = {}) {
+    if (!state.stocks?.length) return;
+
+    try {
+      const quotes = await Promise.all(state.stocks.map((stock) => fetchStooqQuote(stock)));
+      let changed = false;
+
+      state.stocks = state.stocks.map((stock, index) => {
+        const quote = quotes[index];
+        if (!quote) return stock;
+
+        changed = true;
+        updateMarketListAsset(state.activityTopMoversData, stock.symbol, quote.price, quote.move);
+
+        const nextStock = {
+          ...stock,
+          price: quote.price,
+          move: quote.move,
+          lastQuoteAt: quote.lastQuoteAt,
+          volume: quote.volume
+        };
+        updatePortfolioStockPrices(nextStock);
+        return nextStock;
+      });
+
+      if (!changed) return;
+
+      resetLiveBaseFromPortfolio();
+      saveState();
+      if (render) {
+        renderAll();
+        if (el.manageModal && !el.manageModal.classList.contains("hidden")) {
+          fillManageForm();
+        }
+      }
+    } catch (error) {
+      console.warn("Live stock prices unavailable; using the last saved prices.", error);
+    }
+  }
+
+  function startStockMarketPricing() {
+    stopStockMarketPricing();
+    refreshStockMarketPrices();
+    stockMarketInterval = setInterval(refreshStockMarketPrices, STOCK_MARKET_REFRESH_MS);
+  }
+
+  function stopStockMarketPricing() {
+    if (stockMarketInterval) {
+      clearInterval(stockMarketInterval);
+      stockMarketInterval = null;
     }
   }
 
@@ -1331,14 +1666,18 @@
     if (!cleanName) return;
 
     const newId = `p${Date.now()}`;
+    saveCurrentPortfolioSnapshot();
     state.portfolioUi.items.push({
       id: newId,
       name: cleanName
     });
+    state.portfolioData[newId] = emptyPortfolioSnapshot();
     state.portfolioUi.activeId = newId;
+    loadActivePortfolioSnapshot();
     saveState();
-    renderProfile();
-    renderPortfolioDropdown();
+    renderAll();
+    refreshCryptoMarketPrices();
+    refreshStockMarketPrices();
   }
 
   function openLogoPreview() {
@@ -1377,7 +1716,23 @@
     return state.stocks.find((s) => s.id === id);
   }
 
+  function renderManagePortfolioSelect() {
+    if (!el.managePortfolioSelect) return;
+    el.managePortfolioSelect.innerHTML = "";
+
+    state.portfolioUi.items.forEach((item) => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.name;
+      option.selected = item.id === state.portfolioUi.activeId;
+      el.managePortfolioSelect.appendChild(option);
+    });
+  }
+
   function fillManageForm() {
+    renderManagePortfolioSelect();
+    if (el.managePortfolioName) el.managePortfolioName.value = activePortfolio()?.name || "";
+
     const btc = getCrypto("btc");
     const eth = getCrypto("eth");
     const sol = getCrypto("sol");
@@ -1395,20 +1750,20 @@
     if (el.manageBuyingPower) el.manageBuyingPower.value = state.wallet.buyingPower ?? 0;
 
     if (el.btcAmount) el.btcAmount.value = btc?.amount ?? 0;
-    if (el.btcPrice) el.btcPrice.value = btc?.price ?? 0;
+    if (el.btcPrice) el.btcPrice.value = priceInputValue(btc?.price);
     if (el.ethAmount) el.ethAmount.value = eth?.amount ?? 0;
-    if (el.ethPrice) el.ethPrice.value = eth?.price ?? 0;
+    if (el.ethPrice) el.ethPrice.value = priceInputValue(eth?.price);
     if (el.solAmount) el.solAmount.value = sol?.amount ?? 0;
-    if (el.solPrice) el.solPrice.value = sol?.price ?? 0;
+    if (el.solPrice) el.solPrice.value = priceInputValue(sol?.price);
     if (el.xrpAmount) el.xrpAmount.value = xrp?.amount ?? 0;
-    if (el.xrpPrice) el.xrpPrice.value = xrp?.price ?? 0;
+    if (el.xrpPrice) el.xrpPrice.value = priceInputValue(xrp?.price);
 
     if (el.tslaShares) el.tslaShares.value = tsla?.shares ?? 0;
-    if (el.tslaPrice) el.tslaPrice.value = tsla?.price ?? 0;
+    if (el.tslaPrice) el.tslaPrice.value = priceInputValue(tsla?.price);
     if (el.nvdaShares) el.nvdaShares.value = nvda?.shares ?? 0;
-    if (el.nvdaPrice) el.nvdaPrice.value = nvda?.price ?? 0;
+    if (el.nvdaPrice) el.nvdaPrice.value = priceInputValue(nvda?.price);
     if (el.spyShares) el.spyShares.value = spy?.shares ?? 0;
-    if (el.spyPrice) el.spyPrice.value = spy?.price ?? 0;
+    if (el.spyPrice) el.spyPrice.value = priceInputValue(spy?.price);
 
     if (el.acc1Name) el.acc1Name.value = state.accounts[0]?.name ?? "";
     if (el.acc1Balance) el.acc1Balance.value = state.accounts[0]?.balance ?? 0;
@@ -1436,19 +1791,6 @@
     state.user.name = el.manageName?.value.trim() || "Richie";
     const newName = el.manageName?.value.trim() || "Richie";
     state.user.name = newName;
-
-    /* keep the main/default Richie portfolio synced with settings name */
-    if (state.portfolioUi && Array.isArray(state.portfolioUi.items) && state.portfolioUi.items.length) {
-      const primaryPortfolio = state.portfolioUi.items[0];
-
-      if (primaryPortfolio) {
-        primaryPortfolio.name = newName;
-
-        if (!state.portfolioUi.activeId) {
-          state.portfolioUi.activeId = primaryPortfolio.id;
-        }
-      }
-    }
     state.user.email = el.manageEmail?.value.trim() || "richie2broke@proton.me";
     state.wallet.cash = Number(el.manageCash?.value) || 0;
     state.wallet.available = Number(el.manageAvailable?.value) || 0;
@@ -1462,19 +1804,15 @@
 
     if (btc) {
       btc.amount = Number(el.btcAmount?.value) || 0;
-      btc.price = Number(el.btcPrice?.value) || 0;
     }
     if (eth) {
       eth.amount = Number(el.ethAmount?.value) || 0;
-      eth.price = Number(el.ethPrice?.value) || 0;
     }
     if (sol) {
       sol.amount = Number(el.solAmount?.value) || 0;
-      sol.price = Number(el.solPrice?.value) || 0;
     }
     if (xrp) {
       xrp.amount = Number(el.xrpAmount?.value) || 0;
-      xrp.price = Number(el.xrpPrice?.value) || 0;
     }
 
     const tsla = getStock("tsla");
@@ -1483,18 +1821,22 @@
 
     if (tsla) {
       tsla.shares = Number(el.tslaShares?.value) || 0;
-      tsla.price = Number(el.tslaPrice?.value) || 0;
     }
     if (nvda) {
       nvda.shares = Number(el.nvdaShares?.value) || 0;
-      nvda.price = Number(el.nvdaPrice?.value) || 0;
     }
     if (spy) {
       spy.shares = Number(el.spyShares?.value) || 0;
-      spy.price = Number(el.spyPrice?.value) || 0;
+    }
+
+    const portfolioName = el.managePortfolioName?.value.trim();
+    const active = activePortfolio();
+    if (portfolioName && active) {
+      active.name = portfolioName;
     }
 
     resetLiveBaseFromPortfolio();
+    saveCurrentPortfolioSnapshot();
     saveState();
     renderAll();
   }
@@ -1507,10 +1849,14 @@
     };
 
     const preservedPortfolios = clone(state.portfolioUi);
+    const preservedPortfolioData = clone(state.portfolioData || {});
 
     state = clone(defaultState);
     state.user = preservedUser;
     state.portfolioUi = preservedPortfolios;
+    state.portfolioData = preservedPortfolioData;
+    ensurePortfolioData();
+    loadActivePortfolioSnapshot();
 
     resetLiveBaseFromPortfolio();
     saveState();
@@ -1525,6 +1871,8 @@
       setTab("home");
       startLiveTicker();
       startActivityMarketTicker();
+      refreshCryptoMarketPrices();
+      refreshStockMarketPrices();
     } else {
       showScreen("login");
       stopLiveTicker();
@@ -1569,6 +1917,8 @@
     setTab("home");
     startLiveTicker();
     startActivityMarketTicker();
+    refreshCryptoMarketPrices();
+    refreshStockMarketPrices();
 
     if (el.loginPassword) el.loginPassword.value = "";
   }
@@ -1731,10 +2081,7 @@
       if (portfolioItem) {
         const portfolioId = portfolioItem.getAttribute("data-portfolio-id");
         if (portfolioId) {
-          state.portfolioUi.activeId = portfolioId;
-          saveState();
-          renderProfile();
-          renderPortfolioDropdown();
+          switchPortfolio(portfolioId);
           closePortfolioDropdown();
         }
         return;
@@ -1917,6 +2264,13 @@
       });
     }
 
+    if (el.managePortfolioSelect) {
+      el.managePortfolioSelect.addEventListener("change", () => {
+        switchPortfolio(el.managePortfolioSelect.value);
+        fillManageForm();
+      });
+    }
+
     if (el.resetBtn) el.resetBtn.addEventListener("click", resetData);
     if (el.logoutBtn) el.logoutBtn.addEventListener("click", logout);
 
@@ -1958,6 +2312,8 @@
 
     resetLiveBaseFromPortfolio();
     renderAll();
+    startCryptoMarketPricing();
+    startStockMarketPricing();
 
     injectSectionPlusButton("activityCryptoMarket", "activityMarketAddBtn");
     injectSectionPlusButton("activityTopMovers", "activityTopMoversAddBtn");
