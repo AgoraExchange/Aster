@@ -117,6 +117,30 @@
     { id: 1010, type: "notification", title: "Did you know?", subtitle: "Screeners can help uncover names with unusual momentum.", amount: 0, date: "Yesterday • 2:52 PM" }
   ];
 
+  const payRecipientDefaults = [
+    { id: "r1", name: "Nova Vault", handle: "0xA91...7F2C", asset: "ETH", lastPaid: 1840.25, avatar: "N" },
+    { id: "r2", name: "Solana Desk", handle: "9hV4...Qp18", asset: "SOL", lastPaid: 420.0, avatar: "S" },
+    { id: "r3", name: "Aster Cold Wallet", handle: "bc1q...m9x4", asset: "BTC", lastPaid: 3200.8, avatar: "A" }
+  ];
+
+  const payHistoryDefaults = [
+    { id: "p1", name: "Nova Vault", detail: "Paid 0.38 ETH", amount: 1840.25, date: "Today - 4:12 PM" },
+    { id: "p2", name: "Solana Desk", detail: "Paid 3.92 SOL", amount: 420.0, date: "Yesterday - 7:06 PM" },
+    { id: "p3", name: "Aster Cold Wallet", detail: "Paid 0.032 BTC", amount: 3200.8, date: "Mar 12 - 9:44 AM" }
+  ];
+
+  const payQrPattern = [
+    1, 1, 1, 0, 1, 0, 1, 1, 1,
+    1, 0, 1, 0, 1, 1, 1, 0, 1,
+    1, 1, 1, 0, 0, 1, 1, 1, 1,
+    0, 0, 1, 1, 1, 0, 0, 1, 0,
+    1, 1, 0, 1, 0, 1, 1, 0, 1,
+    0, 1, 0, 0, 1, 1, 0, 1, 0,
+    1, 1, 1, 0, 1, 0, 1, 1, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 1, 1, 0, 1, 1, 1, 1, 1
+  ];
+
   const timedBannerPool = [
     {
       title: "Did you know?",
@@ -169,6 +193,11 @@
     activityMarketCoins: activityCryptoDefaults,
     activityTopMoversData: activityTopMoversDefaults,
     activityNewsItems: activityNewsDefaults,
+    payRecipients: payRecipientDefaults,
+    payHistory: payHistoryDefaults,
+    payUi: {
+      mode: "overview"
+    },
     accountUi: {
       expandedId: null
     },
@@ -281,6 +310,21 @@
 
     accountsList: $("accountsList"),
     activityList: $("activityList"),
+    payRecipientsList: $("payRecipientsList"),
+    payHistoryList: $("payHistoryList"),
+    payDynamicPanel: $("payDynamicPanel"),
+    paySendBtn: $("paySendBtn"),
+    payReceiveBtn: $("payReceiveBtn"),
+    payTransferBtn: $("payTransferBtn"),
+    payScannerModal: $("payScannerModal"),
+    payScannerSheet: document.querySelector(".pay-scanner-sheet"),
+    payScannerFrame: document.querySelector(".scanner-frame"),
+    closePayScanner: $("closePayScanner"),
+    payScannerVideo: $("payScannerVideo"),
+    payScannerFallback: $("payScannerFallback"),
+    payScannerStatus: $("payScannerStatus"),
+    manualWalletAddress: $("manualWalletAddress"),
+    confirmManualSend: $("confirmManualSend"),
 
     chartLinePath: $("chartLinePath"),
     chartAreaPath: $("chartAreaPath"),
@@ -371,6 +415,8 @@
   let settingsEventsBound = false;
   let portfolioEventsBound = false;
   let logoPreviewEventsBound = false;
+  let payEventsBound = false;
+  let payScannerStream = null;
 
   function clone(obj) {
     return JSON.parse(JSON.stringify(obj));
@@ -476,6 +522,7 @@
       ...parsed,
       banners: { ...defaultState.banners, ...(parsed.banners || {}) },
       accountUi: { ...defaultState.accountUi, ...(parsed.accountUi || {}) },
+      payUi: { ...defaultState.payUi, ...(parsed.payUi || {}) },
       settingsUi: { ...defaultState.settingsUi, ...(parsed.settingsUi || {}) },
       portfolioUi: {
         ...defaultState.portfolioUi,
@@ -497,7 +544,9 @@
       historyItems: Array.isArray(parsed.historyItems) ? parsed.historyItems : clone(defaultState.historyItems),
       activityMarketCoins: Array.isArray(parsed.activityMarketCoins) ? parsed.activityMarketCoins : clone(defaultState.activityMarketCoins),
       activityTopMoversData: Array.isArray(parsed.activityTopMoversData) ? parsed.activityTopMoversData : clone(defaultState.activityTopMoversData),
-      activityNewsItems: Array.isArray(parsed.activityNewsItems) ? parsed.activityNewsItems : clone(defaultState.activityNewsItems)
+      activityNewsItems: Array.isArray(parsed.activityNewsItems) ? parsed.activityNewsItems : clone(defaultState.activityNewsItems),
+      payRecipients: Array.isArray(parsed.payRecipients) ? parsed.payRecipients : clone(defaultState.payRecipients),
+      payHistory: Array.isArray(parsed.payHistory) ? parsed.payHistory : clone(defaultState.payHistory)
     };
 
     if (!Array.isArray(merged.accounts) || merged.accounts.length < 3) {
@@ -607,6 +656,7 @@
   function setTab(tab) {
     el.navBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
     el.panels.forEach((panel) => panel.classList.toggle("active", panel.dataset.tab === tab));
+    if (tab !== "pay") closePayScanner();
   }
 
   function renderProfile() {
@@ -1213,6 +1263,215 @@
     renderHistory();
   }
 
+  function walletAddress() {
+    return "0x71C4A967b9E84F8a2dD0Aster439a81C7F2E9016";
+  }
+
+  function renderQrGrid() {
+    return `
+      <div class="pay-qr-grid">
+        ${payQrPattern.map((cell) => `<span class="${cell ? "on" : ""}"></span>`).join("")}
+      </div>
+    `;
+  }
+
+  function setPayMode(mode) {
+    state.payUi.mode = mode;
+    saveState();
+    renderPayDynamicPanel();
+  }
+
+  function renderPayDynamicPanel() {
+    if (!el.payDynamicPanel) return;
+
+    if (state.payUi.mode === "receive") {
+      el.payDynamicPanel.innerHTML = `
+        <div class="pay-receive-card glass">
+          <div class="pay-receive-top">
+            <div>
+              <p class="eyebrow">Receive</p>
+              <h3>Your Aster wallet address</h3>
+            </div>
+            <div class="pay-qr">${renderQrGrid()}</div>
+          </div>
+          <div class="wallet-address-box">
+            <span>Wallet Address</span>
+            <strong>${walletAddress()}</strong>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (state.payUi.mode === "transfer") {
+      el.payDynamicPanel.innerHTML = `
+        <div class="pay-transfer-card glass">
+          <div class="pay-transfer-top">
+            <div>
+              <p class="eyebrow">Transfer</p>
+              <h3>Move funds between Aster balances</h3>
+            </div>
+          </div>
+          <div class="pay-transfer-grid">
+            <div class="transfer-pill">
+              <span>From</span>
+              <strong>Trading Wallet</strong>
+            </div>
+            <div class="transfer-pill">
+              <span>To</span>
+              <strong>Cold Wallet</strong>
+            </div>
+            <div class="transfer-pill">
+              <span>Available</span>
+              <strong>${money(state.wallet.buyingPower)}</strong>
+            </div>
+            <div class="transfer-pill">
+              <span>Network</span>
+              <strong>Aster Rail</strong>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    el.payDynamicPanel.innerHTML = `
+      <div class="pay-empty-panel">
+        <strong>Ready for a payment</strong>
+        <p>Scan a wallet QR or show your receive code.</p>
+      </div>
+    `;
+  }
+
+  function renderPayRecipients() {
+    if (!el.payRecipientsList) return;
+    el.payRecipientsList.innerHTML = "";
+
+    state.payRecipients.forEach((recipient) => {
+      const card = document.createElement("div");
+      card.className = "list-card";
+      card.innerHTML = `
+        <div class="list-row">
+          <div class="list-left">
+            <div class="list-icon pay-recipient-badge">${recipient.avatar || recipient.name[0]}</div>
+            <div class="list-text">
+              <h4 class="list-title">${recipient.name}</h4>
+              <p class="list-sub">${recipient.handle} - ${recipient.asset}</p>
+            </div>
+          </div>
+          <div class="amount">
+            <strong>${money(recipient.lastPaid)}</strong>
+            <small>Last paid</small>
+          </div>
+        </div>
+      `;
+      el.payRecipientsList.appendChild(card);
+    });
+  }
+
+  function renderPayHistory() {
+    if (!el.payHistoryList) return;
+    el.payHistoryList.innerHTML = "";
+
+    state.payHistory.forEach((payment) => {
+      const card = document.createElement("div");
+      card.className = "list-card";
+      card.innerHTML = `
+        <div class="list-row">
+          <div class="list-left">
+            <div class="list-icon pay-paid-badge">$</div>
+            <div class="list-text">
+              <h4 class="list-title">${payment.name}</h4>
+              <p class="list-sub">${payment.detail}</p>
+              <p class="list-sub">${payment.date}</p>
+            </div>
+          </div>
+          <div class="amount">
+            <strong class="red">-${money(payment.amount)}</strong>
+            <small>Paid</small>
+          </div>
+        </div>
+      `;
+      el.payHistoryList.appendChild(card);
+    });
+  }
+
+  function renderPay() {
+    renderPayDynamicPanel();
+    renderPayRecipients();
+    renderPayHistory();
+  }
+
+  function stopPayScanner() {
+    if (payScannerStream) {
+      payScannerStream.getTracks().forEach((track) => track.stop());
+      payScannerStream = null;
+    }
+
+    if (el.payScannerVideo) {
+      el.payScannerVideo.srcObject = null;
+    }
+  }
+
+  function closePayScanner() {
+    stopPayScanner();
+    if (el.payScannerModal) el.payScannerModal.classList.add("hidden");
+    setScannerFocusMode(true);
+    if (
+      (!el.manageModal || el.manageModal.classList.contains("hidden")) &&
+      (!el.newPortfolioModal || el.newPortfolioModal.classList.contains("hidden")) &&
+      (!el.logoPreviewModal || el.logoPreviewModal.classList.contains("hidden"))
+    ) {
+      document.body.style.overflow = "";
+    }
+  }
+
+  function setScannerFocusMode(focused) {
+    if (!el.payScannerModal) return;
+
+    el.payScannerModal.classList.toggle("scanner-soft-focus", !focused);
+
+    if (el.payScannerStatus) {
+      el.payScannerStatus.textContent = focused
+        ? "Camera focused. Aim at the recipient's wallet QR code."
+        : "Preview softened. Tap the camera square to focus and scan.";
+    }
+  }
+
+  async function openPayScanner() {
+    setPayMode("overview");
+    if (!el.payScannerModal) return;
+
+    el.payScannerModal.classList.remove("hidden");
+    setScannerFocusMode(true);
+    document.body.style.overflow = "hidden";
+
+    if (el.payScannerFallback) el.payScannerFallback.classList.add("hidden");
+    if (el.payScannerStatus) el.payScannerStatus.textContent = "Aim your camera at the recipient's wallet QR code.";
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      if (el.payScannerFallback) el.payScannerFallback.classList.remove("hidden");
+      if (el.payScannerStatus) el.payScannerStatus.textContent = "Camera access is not available in this browser. Enter the wallet address manually.";
+      return;
+    }
+
+    try {
+      stopPayScanner();
+      payScannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false
+      });
+      if (el.payScannerVideo) {
+        el.payScannerVideo.srcObject = payScannerStream;
+        await el.payScannerVideo.play();
+      }
+    } catch {
+      if (el.payScannerFallback) el.payScannerFallback.classList.remove("hidden");
+      if (el.payScannerStatus) el.payScannerStatus.textContent = "Camera permission was not granted. You can still paste or type the wallet address below.";
+    }
+  }
+
+
   function ensureAccountsHeaderButton() {
     if (!el.accountsList || document.getElementById("accountsHeadRow")) return;
 
@@ -1702,6 +1961,7 @@
     renderProfile();
     renderHome();
     renderEnhancedPortfolioPage();
+    renderPay();
     renderAccounts();
     renderActivity();
     renderSettingsPage();
@@ -1865,6 +2125,7 @@
     closeNewPortfolioModal();
     closePortfolioDropdown();
     closeLogoPreview();
+    closePayScanner();
 
     if (state.user.loggedIn) {
       showScreen("main");
@@ -1931,6 +2192,7 @@
     closePortfolioDropdown();
     closeNewPortfolioModal();
     closeLogoPreview();
+    closePayScanner();
     showScreen("login");
 
     if (el.loginPassword) el.loginPassword.value = "";
@@ -2177,6 +2439,51 @@
     });
   }
 
+  function bindPayEvents() {
+    if (payEventsBound) return;
+    payEventsBound = true;
+
+    if (el.paySendBtn) el.paySendBtn.addEventListener("click", openPayScanner);
+    if (el.payReceiveBtn) el.payReceiveBtn.addEventListener("click", () => setPayMode("receive"));
+    if (el.payTransferBtn) el.payTransferBtn.addEventListener("click", () => setPayMode("transfer"));
+    if (el.closePayScanner) el.closePayScanner.addEventListener("click", closePayScanner);
+
+    const scannerBackdrop = document.querySelector("[data-close-pay-scanner='true']");
+    if (scannerBackdrop) scannerBackdrop.addEventListener("click", () => setScannerFocusMode(false));
+
+    if (el.payScannerFrame) {
+      el.payScannerFrame.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setScannerFocusMode(true);
+      });
+    }
+
+    if (el.payScannerSheet) {
+      el.payScannerSheet.addEventListener("click", (e) => {
+        const interactiveTarget = e.target.closest("button, input, label, .scanner-frame");
+        if (interactiveTarget) return;
+        setScannerFocusMode(false);
+      });
+    }
+
+    if (el.confirmManualSend) {
+      el.confirmManualSend.addEventListener("click", () => {
+        const value = el.manualWalletAddress?.value.trim() || "";
+        if (value && el.payScannerStatus) {
+          el.payScannerStatus.textContent = "Wallet address captured. Review payment details before sending.";
+        } else if (el.payScannerStatus) {
+          el.payScannerStatus.textContent = "Paste or type a recipient wallet address to continue.";
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && el.payScannerModal && !el.payScannerModal.classList.contains("hidden")) {
+        closePayScanner();
+      }
+    });
+  }
+
   function getVisibleBannerElement() {
     if (!el.topInfoBanner) return null;
     const isHidden =
@@ -2309,6 +2616,7 @@
     bindSettingsEvents();
     bindPortfolioEvents();
     bindLogoPreviewEvents();
+    bindPayEvents();
 
     resetLiveBaseFromPortfolio();
     renderAll();

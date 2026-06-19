@@ -1268,6 +1268,40 @@ input[readonly] {
   color: white;
 }
 
+.pay-nav-btn {
+  position: relative;
+  top: -12px;
+  border: 1px solid rgba(20, 241, 149, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035)),
+    linear-gradient(135deg, rgba(20, 241, 149, 0.2), rgba(102, 167, 255, 0.14));
+  box-shadow: 0 14px 26px rgba(20, 241, 149, 0.14);
+}
+
+.pay-nav-btn.active {
+  background: linear-gradient(135deg, #14f195, #66a7ff 58%, #7f6fff);
+  color: #07101d;
+}
+
+.pay-nav-btn span {
+  color: transparent;
+  position: relative;
+}
+
+.pay-nav-btn span::before {
+  content: "$";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #f5f7ff;
+  font-weight: 900;
+}
+
+.pay-nav-btn.active span::before {
+  color: #07101d;
+}
+
 .nav-btn span {
   font-size: 1.08rem;
 }
@@ -1498,6 +1532,437 @@ input[readonly] {
 
 .history-badge-transfer {
   background: linear-gradient(135deg, #295b9b, #66a7ff);
+}
+
+/* =========================
+   PAY
+   ========================= */
+
+.pay-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 176px;
+  border-radius: 28px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  background:
+    linear-gradient(135deg, rgba(20, 241, 149, 0.16), rgba(102, 167, 255, 0.12) 46%, rgba(127, 111, 255, 0.12)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045));
+}
+
+.pay-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -42px -62px auto;
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(41, 209, 130, 0.22), rgba(41, 209, 130, 0));
+  pointer-events: none;
+}
+
+.pay-hero-copy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  max-width: 300px;
+}
+
+.pay-hero-copy h1 {
+  margin: 8px 0 8px;
+  font-size: 2rem;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+
+.pay-hero-copy p:last-child {
+  margin: 0;
+  color: #b6c2df;
+  line-height: 1.45;
+  font-size: 0.94rem;
+}
+
+.pay-orbit {
+  position: relative;
+  z-index: 1;
+  width: 82px;
+  height: 82px;
+  min-width: 82px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255, 255, 255, 0.42), transparent 24%),
+    linear-gradient(135deg, #14f195, #66a7ff 56%, #7f6fff);
+  box-shadow:
+    0 18px 36px rgba(20, 241, 149, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.pay-orbit span {
+  color: white;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.pay-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.pay-action-btn {
+  min-height: 82px;
+  border-radius: 22px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.pay-action-btn.primary {
+  background: linear-gradient(135deg, rgba(20, 241, 149, 0.2), rgba(102, 167, 255, 0.16));
+  border-color: rgba(20, 241, 149, 0.24);
+}
+
+.pay-action-btn span {
+  width: 34px;
+  height: 34px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  font-weight: 900;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pay-action-btn strong {
+  font-size: 0.9rem;
+}
+
+.pay-dynamic-panel {
+  margin-top: 14px;
+}
+
+.pay-empty-panel {
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.pay-empty-panel p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.4;
+  font-size: 0.88rem;
+}
+
+.pay-receive-card,
+.pay-transfer-card {
+  padding: 18px;
+  border-radius: 24px;
+}
+
+.pay-receive-top,
+.pay-transfer-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.pay-receive-top h3,
+.pay-transfer-top h3 {
+  margin: 4px 0 0;
+  font-size: 1.22rem;
+}
+
+.pay-qr {
+  width: 132px;
+  height: 132px;
+  min-width: 132px;
+  border-radius: 22px;
+  padding: 10px;
+  background: #f5f7ff;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.28);
+}
+
+.pay-qr-grid {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  gap: 2px;
+}
+
+.pay-qr-grid span {
+  border-radius: 2px;
+  background: transparent;
+}
+
+.pay-qr-grid span.on {
+  background: #07101d;
+}
+
+.wallet-address-box {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.wallet-address-box span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.wallet-address-box strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.pay-transfer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.transfer-pill {
+  padding: 14px;
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.transfer-pill span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 6px;
+}
+
+.transfer-pill strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.pay-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pay-recipient-badge {
+  background: linear-gradient(135deg, #14f195, #66a7ff);
+}
+
+.pay-paid-badge {
+  background: linear-gradient(135deg, #5a44b7, #7f6fff);
+}
+
+.pay-scanner-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--nav-h) + var(--safe-bottom));
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 520px;
+  min-height: min(78dvh, 680px);
+  max-height: calc(100dvh - var(--nav-h) - var(--safe-bottom) - 10px);
+  overflow-y: auto;
+  padding:
+    calc(14px + var(--safe-top))
+    calc(16px + var(--safe-right))
+    calc(18px + var(--safe-bottom))
+    calc(16px + var(--safe-left));
+  border-top-left-radius: 30px;
+  border-top-right-radius: 30px;
+  background:
+    radial-gradient(circle at 50% 23%, rgba(20, 241, 149, 0.13), transparent 34%),
+    radial-gradient(circle at 72% 12%, rgba(102, 167, 255, 0.18), transparent 36%),
+    linear-gradient(180deg, rgba(11, 18, 33, 0.98) 0%, rgba(8, 13, 24, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+#payScannerModal {
+  z-index: 25;
+}
+
+.pay-scanner-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pay-scanner-head h3 {
+  margin: 4px 0 0;
+}
+
+.scanner-frame {
+  position: relative;
+  width: min(78vw, 310px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 26px;
+  background: #050914;
+  border: 1px solid rgba(20, 241, 149, 0.3);
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.38),
+    0 22px 46px rgba(0, 0, 0, 0.42),
+    0 0 36px rgba(20, 241, 149, 0.16);
+  cursor: pointer;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.scanner-frame video,
+.scanner-fallback {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.scanner-frame video {
+  filter: saturate(1.14) contrast(1.08) brightness(1.12);
+  transform: scale(1.01);
+  transition: filter 0.28s ease, transform 0.28s ease, opacity 0.28s ease;
+}
+
+.scanner-wave-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(20, 241, 149, 0.22) 0 1px, transparent 1px 18px),
+    linear-gradient(115deg, transparent 0%, rgba(102, 167, 255, 0.2) 44%, rgba(20, 241, 149, 0.25) 50%, transparent 58%);
+  mix-blend-mode: screen;
+  transform: scale(1.12);
+  transition: opacity 0.24s ease;
+}
+
+.scanner-fallback {
+  display: grid;
+  place-items: center;
+  color: #aeb9d5;
+  padding: 18px;
+  text-align: center;
+  background:
+    linear-gradient(135deg, rgba(102, 167, 255, 0.12), rgba(127, 111, 255, 0.12)),
+    #070b13;
+}
+
+.scanner-fallback.hidden {
+  display: none;
+}
+
+.scanner-corners {
+  position: absolute;
+  inset: 16px;
+  border-radius: 18px;
+  border: 2px solid rgba(20, 241, 149, 0.98);
+  box-shadow:
+    0 0 24px rgba(20, 241, 149, 0.28),
+    inset 0 0 20px rgba(20, 241, 149, 0.08);
+  pointer-events: none;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+#payScannerModal.scanner-soft-focus .scanner-frame {
+  border-color: rgba(102, 167, 255, 0.42);
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.3),
+    0 22px 46px rgba(0, 0, 0, 0.42),
+    0 0 42px rgba(102, 167, 255, 0.22);
+  transform: scale(0.99);
+}
+
+#payScannerModal.scanner-soft-focus .scanner-frame video {
+  filter: blur(8px) saturate(1.35) contrast(1.16) brightness(0.92);
+  transform: scale(1.08);
+  opacity: 0.82;
+}
+
+#payScannerModal.scanner-soft-focus .scanner-wave-layer {
+  opacity: 1;
+  animation: scannerWaves 2.4s linear infinite;
+}
+
+#payScannerModal.scanner-soft-focus .scanner-corners {
+  border-color: rgba(102, 167, 255, 0.95);
+  box-shadow:
+    0 0 28px rgba(102, 167, 255, 0.36),
+    inset 0 0 24px rgba(102, 167, 255, 0.1);
+}
+
+@keyframes scannerWaves {
+  from {
+    background-position: 0 0, -180px 0;
+  }
+  to {
+    background-position: 0 38px, 180px 0;
+  }
+}
+
+.scanner-instruction {
+  width: min(360px, 100%);
+  margin: 22px auto 0;
+  color: #dce5ff;
+  text-align: center;
+  line-height: 1.45;
+}
+
+.scanner-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 14px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+}
+
+.scanner-or::before,
+.scanner-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.scanner-address-label {
+  margin-top: 0;
+}
+
+.scanner-submit-btn {
+  width: 100%;
+  margin-top: 14px;
 }
 
 /* =========================

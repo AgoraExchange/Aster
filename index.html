@@ -257,6 +257,47 @@
           <div id="historyList" class="stack"></div>
         </section>
 
+        <section class="tab-panel" data-tab="pay">
+          <div class="pay-hero glass">
+            <div class="pay-hero-copy">
+              <p class="eyebrow">Aster Pay</p>
+              <h1>Move crypto in seconds.</h1>
+              <p>Send, receive, and transfer from your Aster Wallet with QR-first payments.</p>
+            </div>
+            <div class="pay-orbit" aria-hidden="true">
+              <span>$</span>
+            </div>
+          </div>
+
+          <div class="pay-actions">
+            <button id="paySendBtn" class="pay-action-btn primary" type="button">
+              <span>&uarr;</span>
+              <strong>Send</strong>
+            </button>
+            <button id="payReceiveBtn" class="pay-action-btn" type="button">
+              <span>&darr;</span>
+              <strong>Receive</strong>
+            </button>
+            <button id="payTransferBtn" class="pay-action-btn" type="button">
+              <span>&harr;</span>
+              <strong>Transfer</strong>
+            </button>
+          </div>
+
+          <div id="payDynamicPanel" class="pay-dynamic-panel"></div>
+
+          <div class="section-head pay-section-head">
+            <h3>Pay Recipients</h3>
+            <button class="market-add-btn" type="button">+</button>
+          </div>
+          <div id="payRecipientsList" class="stack"></div>
+
+          <div class="section-head">
+            <h3>Previously Paid</h3>
+          </div>
+          <div id="payHistoryList" class="stack"></div>
+        </section>
+
         <section class="tab-panel" data-tab="accounts">
           <div id="accountsList" class="stack"></div>
         </section>
@@ -413,9 +454,9 @@
           <span>📈</span>
           <small>Assets</small>
         </button>
-        <button class="nav-btn" data-tab="accounts" type="button">
+        <button class="nav-btn pay-nav-btn" data-tab="pay" type="button">
           <span>🏦</span>
-          <small>Accounts</small>
+          <small>Pay</small>
         </button>
         <button class="nav-btn" data-tab="activity" type="button">
           <span>🧾</span>
@@ -427,6 +468,41 @@
         </button>
       </nav>
     </section>
+
+    <div id="payScannerModal" class="modal hidden">
+      <div class="modal-backdrop" data-close-pay-scanner="true"></div>
+      <div class="pay-scanner-sheet">
+        <div class="pay-scanner-head">
+          <button id="closePayScanner" class="icon-btn" type="button">&times;</button>
+          <div>
+            <p class="eyebrow">Send Crypto</p>
+            <h3>Scan recipient wallet</h3>
+          </div>
+        </div>
+
+        <div class="scanner-frame">
+          <video id="payScannerVideo" autoplay playsinline muted></video>
+          <div class="scanner-wave-layer" aria-hidden="true"></div>
+          <div id="payScannerFallback" class="scanner-fallback hidden">
+            Camera preview unavailable
+          </div>
+          <div class="scanner-corners" aria-hidden="true"></div>
+        </div>
+
+        <p id="payScannerStatus" class="scanner-instruction">
+          Aim your camera at the recipient's wallet QR code.
+        </p>
+
+        <div class="scanner-or"><span>or</span></div>
+
+        <label class="scanner-address-label">
+          <span>Enter wallet address manually</span>
+          <input id="manualWalletAddress" type="text" placeholder="0x71C...Aster recipient address" autocomplete="off" />
+        </label>
+
+        <button id="confirmManualSend" class="primary-btn scanner-submit-btn" type="button">Continue</button>
+      </div>
+    </div>
 
     <div id="manageModal" class="modal hidden">
       <div class="modal-backdrop"></div>
