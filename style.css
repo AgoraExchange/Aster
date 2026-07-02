@@ -1742,6 +1742,10 @@ input[readonly] {
   font-size: 0.94rem;
 }
 
+.pay-orbit {
+  display: none !important;
+}
+
 .pay-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
