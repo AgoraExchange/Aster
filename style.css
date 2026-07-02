@@ -880,7 +880,9 @@ input[readonly] {
 .list-card {
   border-radius: 22px;
   padding: 16px;
-  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.045)),
+    linear-gradient(135deg, rgba(102, 167, 255, 0.035), rgba(41, 209, 130, 0.018));
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
@@ -930,6 +932,108 @@ input[readonly] {
   place-items: center;
   font-weight: 800;
   color: white;
+  flex-shrink: 0;
+}
+
+.row-spark {
+  width: 88px;
+  height: 46px;
+  border-radius: 14px;
+  padding: 7px 8px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)),
+    rgba(8, 13, 24, 0.58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.row-spark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.row-spark path {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.row-spark.up {
+  background:
+    linear-gradient(180deg, rgba(41, 209, 130, 0.12), rgba(41, 209, 130, 0.025)),
+    rgba(8, 13, 24, 0.58);
+  border-color: rgba(41, 209, 130, 0.14);
+}
+
+.row-spark.up path {
+  stroke: var(--green);
+}
+
+.row-spark.down {
+  background:
+    linear-gradient(180deg, rgba(255, 99, 125, 0.13), rgba(255, 99, 125, 0.025)),
+    rgba(8, 13, 24, 0.58);
+  border-color: rgba(255, 99, 125, 0.16);
+}
+
+.row-spark.down path {
+  stroke: var(--red);
+}
+
+.trade-marker {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.trade-marker span {
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trade-marker.buy,
+.trade-marker.in {
+  color: var(--green);
+  background: linear-gradient(180deg, rgba(41, 209, 130, 0.14), rgba(41, 209, 130, 0.035));
+  border-color: rgba(41, 209, 130, 0.18);
+}
+
+.trade-marker.sell,
+.trade-marker.out {
+  color: var(--red);
+  background: linear-gradient(180deg, rgba(255, 99, 125, 0.14), rgba(255, 99, 125, 0.035));
+  border-color: rgba(255, 99, 125, 0.2);
+}
+
+.trade-marker.note {
+  color: #b9c6ff;
+  background: linear-gradient(180deg, rgba(102, 167, 255, 0.14), rgba(127, 111, 255, 0.045));
+  border-color: rgba(102, 167, 255, 0.16);
+}
+
+.market-row,
+.discover-row {
+  position: relative;
+}
+
+.market-row::before,
+.discover-row::before {
+  content: "";
+  width: 4px;
+  align-self: stretch;
+  min-height: 48px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(102, 167, 255, 0.95), rgba(127, 111, 255, 0.78));
   flex-shrink: 0;
 }
 
@@ -2333,6 +2437,13 @@ input[readonly] {
   border-radius: 18px;
 }
 
+.mover-mini-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
 .mover-mini-card h4 {
   margin: 0;
   font-size: 0.95rem;
@@ -2348,6 +2459,12 @@ input[readonly] {
   display: block;
   margin-top: 10px;
   font-size: 0.95rem;
+}
+
+.mover-mini-card .row-spark {
+  width: 100%;
+  height: 48px;
+  margin-top: 12px;
 }
 
 .news-card {

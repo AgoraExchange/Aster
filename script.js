@@ -1007,6 +1007,81 @@
     }
   }
 
+  function seededSparkPoints(key, move = 0, count = 12) {
+    const source = String(key || "ASTER");
+    let seed = 0;
+    for (let i = 0; i < source.length; i += 1) {
+      seed = (seed * 31 + source.charCodeAt(i)) % 9973;
+    }
+
+    const direction = Number(move) >= 0 ? 1 : -1;
+    const strength = Math.min(Math.abs(Number(move) || 0), 12) / 12;
+    let value = 24 + (seed % 11);
+
+    return Array.from({ length: count }, (_, index) => {
+      const wave = Math.sin((seed + index * 37) / 15) * (2.6 + strength * 2.2);
+      const pulse = Math.cos((seed + index * 19) / 11) * 1.8;
+      const drift = direction * index * (0.45 + strength * 0.55);
+      value = value + wave * 0.22 + direction * 0.14;
+      return Number((value + pulse + drift).toFixed(2));
+    });
+  }
+
+  function sparkPath(points, width = 112, height = 42, pad = 4) {
+    if (!points?.length) return "";
+
+    const min = Math.min(...points);
+    const max = Math.max(...points);
+    const span = max - min || 1;
+
+    return points
+      .map((value, index) => {
+        const x = (index / (points.length - 1)) * (width - pad * 2) + pad;
+        const y = height - ((value - min) / span) * (height - pad * 2) - pad;
+        return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+      })
+      .join(" ");
+  }
+
+  function rowSparkHtml(item, label = "Live") {
+    const move = Number(item.move) || 0;
+    const points = Array.isArray(item.points) ? item.points : seededSparkPoints(item.symbol || item.name || item.id, move);
+    const trendClass = move >= 0 ? "up" : "down";
+
+    return `
+      <div class="row-spark ${trendClass}" aria-label="${label} movement">
+        <svg viewBox="0 0 112 42" preserveAspectRatio="none">
+          <path d="${sparkPath(points)}"></path>
+        </svg>
+      </div>
+    `;
+  }
+
+  function tradeMarkerHtml(type, amount = 0) {
+    const markerClass =
+      type === "notification"
+        ? "note"
+        : type === "buy"
+        ? "buy"
+        : type === "sell"
+        ? "sell"
+        : Number(amount) >= 0
+        ? "in"
+        : "out";
+    const label =
+      type === "notification"
+        ? "Alert"
+        : type === "buy"
+        ? "Buy"
+        : type === "sell"
+        ? "Sell"
+        : Number(amount) >= 0
+        ? "In"
+        : "Out";
+
+    return `<div class="trade-marker ${markerClass}"><span>${label}</span></div>`;
+  }
+
   function renderHomeTop() {
     if (el.totalHoldings) el.totalHoldings.textContent = money(currentDisplayedTotal());
     if (el.buyingPowerAmount) el.buyingPowerAmount.textContent = money(state.wallet.buyingPower);
@@ -1029,7 +1104,7 @@
       card.innerHTML = `
         <div class="list-row">
           <div class="list-left">
-            <div class="list-icon ${asset.id}">${asset.symbol[0]}</div>
+            ${rowSparkHtml(asset, `${asset.symbol} live movement`)}
             <div class="list-text">
               <h4 class="list-title">${asset.name}</h4>
               <p class="list-sub">${num(asset.amount)} ${asset.symbol}</p>
@@ -1056,7 +1131,7 @@
       card.innerHTML = `
         <div class="list-row">
           <div class="list-left">
-            <div class="list-icon stock">${stock.symbol[0]}</div>
+            ${rowSparkHtml(stock, `${stock.symbol} live movement`)}
             <div class="list-text">
               <h4 class="list-title">${stock.symbol}</h4>
               <p class="list-sub">${num(stock.shares, 4)} shares • ${stock.name}</p>
@@ -1082,9 +1157,8 @@
       outer.type = "button";
       outer.innerHTML = `
         <div class="list-card">
-          <div class="list-row">
+          <div class="list-row market-row">
             <div class="list-left">
-              <div class="list-icon market">◔</div>
               <div class="list-text">
                 <h4 class="list-title">${market.title}</h4>
                 <p class="list-sub">${market.subtitle}</p>
@@ -1110,9 +1184,8 @@
       card.className = "list-card discover-card";
       card.innerHTML = `
         <button class="discover-close" data-discover-close="${cardInfo.id}" type="button">✕</button>
-        <div class="list-row">
+        <div class="list-row discover-row">
           <div class="list-left">
-            <div class="list-icon discover">✦</div>
             <div class="list-text">
               <h4 class="list-title">${cardInfo.title}</h4>
               <p class="list-sub">${cardInfo.text}</p>
@@ -1177,7 +1250,7 @@
       card.innerHTML = `
         <div class="list-row">
           <div class="list-left">
-            <div class="list-icon stock">${item.symbol[0]}</div>
+            ${rowSparkHtml(item, `${item.symbol} daily movement`)}
             <div class="list-text">
               <h4 class="list-title">${item.symbol}</h4>
               <p class="list-sub">${item.name}</p>
@@ -1205,7 +1278,7 @@
       card.innerHTML = `
         <div class="list-row">
           <div class="list-left">
-            <div class="list-icon ${state.exploreFilter === "nontradable" ? "market" : "stock"}">${item.symbol[0]}</div>
+            ${rowSparkHtml(item, `${item.symbol} market movement`)}
             <div class="list-text">
               <h4 class="list-title">${item.symbol}</h4>
               <p class="list-sub">${item.name}</p>
@@ -1230,21 +1303,12 @@
     el.historyList.innerHTML = "";
 
     state.historyItems.forEach((item) => {
-      const badgeClass =
-        item.type === "buy"
-          ? "history-badge-buy"
-          : item.type === "sell"
-          ? "history-badge-sell"
-          : "history-badge-transfer";
-
-      const badgeText = item.type === "buy" ? "B" : item.type === "sell" ? "S" : "T";
-
       const card = document.createElement("div");
       card.className = "list-card";
       card.innerHTML = `
         <div class="list-row">
           <div class="list-left">
-            <div class="list-icon ${badgeClass}">${badgeText}</div>
+            ${tradeMarkerHtml(item.type, item.amount)}
             <div class="list-text">
               <h4 class="list-title">${item.title}</h4>
               <p class="list-sub">${item.subtitle}</p>
@@ -1578,8 +1642,6 @@
     el.activityList.innerHTML = "";
 
     state.activity.forEach((item) => {
-      const badgeClass = activityBadgeClass(item.type);
-      const badgeText = activityBadgeText(item.type, item.amount || 0);
       const isNotification = item.type === "notification";
 
       const wrap = document.createElement("div");
@@ -1591,7 +1653,7 @@
         <div class="list-card activity-card-swipe ${isNotification ? "notification-card" : ""}">
           <div class="list-row">
             <div class="list-left">
-              <div class="list-icon ${badgeClass}">${badgeText}</div>
+              ${tradeMarkerHtml(item.type, item.amount || 0)}
               <div class="list-text">
                 <h4 class="list-title">${item.title}</h4>
                 <p class="list-sub">${item.subtitle}</p>
@@ -1682,10 +1744,15 @@
       const card = document.createElement("div");
       card.className = "mover-mini-card";
       card.innerHTML = `
-        <h4>${item.symbol}</h4>
-        <p>${item.name}</p>
+        <div class="mover-mini-top">
+          <div>
+            <h4>${item.symbol}</h4>
+            <p>${item.name}</p>
+          </div>
+          <small class="${item.move >= 0 ? "green" : "red"}">${signedPercent(item.move)}</small>
+        </div>
+        ${rowSparkHtml(item, `${item.symbol} top mover chart`)}
         <strong>${money(item.price)}</strong>
-        <small class="${item.move >= 0 ? "green" : "red"}">${signedPercent(item.move)}</small>
       `;
       el.activityTopMovers.appendChild(card);
     });
