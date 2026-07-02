@@ -21,6 +21,11 @@
   const $ = (id) => document.getElementById(id);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+  function syncAppHeight() {
+    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty("--app-height", `${viewportHeight}px`);
+  }
+
   const chartSeries = {
     LIVE: [14, 18, 17, 21, 24, 22, 28, 26, 31, 29, 35, 39],
     "1D": [12, 14, 13, 16, 18, 17, 20, 23, 22, 24, 27, 30],
@@ -2546,6 +2551,14 @@
   }
 
   function bindGlobalEvents() {
+    syncAppHeight();
+    window.addEventListener("resize", syncAppHeight);
+    window.addEventListener("orientationchange", syncAppHeight);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncAppHeight);
+      window.visualViewport.addEventListener("scroll", syncAppHeight);
+    }
+
     if (el.loginForm) {
       el.loginForm.addEventListener("submit", handleLogin);
     }
